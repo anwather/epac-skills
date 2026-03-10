@@ -7,6 +7,30 @@ description: Audit Azure Policy definitions for a specific service (e.g. Storage
 
 When the user asks you to audit Azure policies for a specific service, follow these steps exactly.
 
+## Step 0 — Detect EPAC repo context (if available)
+
+Before starting the audit, check if you are running inside an EPAC repository by searching for a `Definitions/global-settings.jsonc` file using glob patterns like `**/Definitions/global-settings.jsonc`.
+
+If found, read and parse `global-settings.jsonc` to extract `pacEnvironments`:
+
+```jsonc
+{
+    "pacEnvironments": [
+        {
+            "pacSelector": "epac-dev",
+            "tenantId": "...",
+            "deploymentRootScope": "/providers/Microsoft.Management/managementGroups/mg-name"
+        }
+    ]
+}
+```
+
+- If there is **exactly one** `pacEnvironment`, use its `deploymentRootScope` as the scope for querying assignments in Step 3. Do NOT prompt the user for scope selection.
+- If there are **multiple** `pacEnvironment` entries, ask the user which pac selector to use for the audit scope.
+- Use the `deploymentRootScope` value from the selected pac environment instead of defaulting to the tenant root management group.
+
+If no `global-settings.jsonc` is found, fall back to the tenant root management group approach in Step 3.
+
 ## Step 1 — Identify the target service
 
 Ask the user which Azure service to audit if not already specified. Common service keywords include:
@@ -41,9 +65,20 @@ Store the resulting list of policy definition IDs and display names.
 
 ## Step 3 — Retrieve current policy assignments
 
-Use Az PowerShell to retrieve all policy assignments scoped at the **tenant root management group** and below. This captures every assignment inherited across the entire tenant.
+Use Az PowerShell to retrieve all policy assignments at the target scope. The scope depends on whether EPAC context was detected in Step 0.
 
-First, get the tenant root management group ID and the current subscription ID:
+### If EPAC context was detected (global-settings.jsonc found)
+
+Use the `deploymentRootScope` from the selected pac environment:
+
+```powershell
+$rootScope = "<deploymentRootScope from global-settings.jsonc>"
+$subId = (Get-AzContext).Subscription.Id
+```
+
+### If no EPAC context (fallback)
+
+Use the tenant root management group:
 
 ```powershell
 $tenantId = (Get-AzContext).Tenant.Id
@@ -51,7 +86,9 @@ $subId = (Get-AzContext).Subscription.Id
 $rootScope = "/providers/Microsoft.Management/managementGroups/$tenantId"
 ```
 
-Then retrieve policy assignments from both the root management group and the subscription (with descendants). The `-IncludeDescendent` switch is **not supported** at management group scope, so we query each scope separately and deduplicate:
+### Query assignments
+
+Then retrieve policy assignments from both the root scope and the subscription (with descendants). The `-IncludeDescendent` switch is **not supported** at management group scope, so we query each scope separately and deduplicate:
 
 ```powershell
 $mgAssignments = Get-AzPolicyAssignment -Scope $rootScope

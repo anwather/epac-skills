@@ -2,6 +2,10 @@
 
 A [GitHub Copilot CLI plugin](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-creating) that helps manage Azure Policy using the [Enterprise Policy as Code (EPAC)](https://aka.ms/epac) framework.
 
+## EPAC Repo Awareness
+
+When launched inside an EPAC repository, all skills automatically detect the `Definitions/` folder and read `global-settings.jsonc` to extract pac selectors and deployment root scopes. If only one pac selector is configured, it is used automatically without prompting.
+
 ## Available Skills
 
 ### azure-policy-audit
@@ -18,9 +22,24 @@ Audits Azure Policy definitions for a specific service (e.g. Storage, Compute, K
 
 **Requirements:** Az PowerShell module (`Az.Resources`) authenticated to your Azure tenant.
 
+### azure-policy-research
+
+Discovers and browses available Azure built-in policy definitions for a service category. Shows policy effects, parameters, and descriptions grouped by effect type — without checking current assignments.
+
+**Use when:** You want to explore what policies exist for a service before deciding what to assign.
+
+**Example prompts:**
+
+- `What Storage policies are available?`
+- `Show me all built-in Kubernetes policies`
+- `Research available Network security policies`
+- `What Deny policies exist for Key Vault?`
+
+**Requirements:** Az PowerShell module (`Az.Resources`) authenticated to your Azure tenant.
+
 ### epac-policy-objects
 
-Creates Azure Policy objects in EPAC format — policy definitions, policy set definitions (initiatives), and policy assignments as JSON/JSONC files following EPAC conventions and schemas.
+Creates Azure Policy objects in EPAC format — policy definitions, policy set definitions (initiatives), and policy assignments as JSON/JSONC files following EPAC conventions and schemas. Automatically detects your EPAC repo structure and pac selectors.
 
 **Use when:** You want to generate EPAC-compatible policy files for your `Definitions/` folder.
 
@@ -30,7 +49,7 @@ Creates Azure Policy objects in EPAC format — policy definitions, policy set d
 - `Generate an EPAC assignment for the Allowed Locations policy`
 - `Build a custom policy definition that denies storage accounts without TLS 1.2`
 
-**Works with:** The `azure-policy-audit` skill — audit first to find unassigned policies, then use this skill to generate the EPAC files to deploy them.
+**Works with:** The `azure-policy-audit` and `azure-policy-research` skills — research or audit first to find policies, then use this skill to generate the EPAC files to deploy them.
 
 ## Installation
 

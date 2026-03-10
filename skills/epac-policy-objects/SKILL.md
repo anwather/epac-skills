@@ -17,9 +17,46 @@ Definitions/
 └── policyDocumentations/
 ```
 
-Before creating any files, ask the user which `Definitions/` folder to write to if not already specified.
+---
 
-Before creating any files, ask the user which `Definitions/` folder to write to if not already specified.
+## Step 0 — Detect EPAC repo context
+
+Before creating any files, detect the EPAC repository structure automatically:
+
+### Locate the Definitions folder
+
+Search the current working directory and its children for a `Definitions/` folder that contains a `global-settings.jsonc` file. Use glob patterns like `**/Definitions/global-settings.jsonc` to find it. If found, use that `Definitions/` folder as the target for all file creation — do NOT ask the user for the path.
+
+If no `Definitions/` folder is found, ask the user where to create files.
+
+### Read global-settings.jsonc
+
+Once the `Definitions/` folder is located, read and parse `global-settings.jsonc`. This file contains `pacEnvironments` which define the pac selectors and their deployment scopes. A typical structure looks like:
+
+```jsonc
+{
+    "$schema": "...",
+    "pacOwnerId": "...",
+    "pacEnvironments": [
+        {
+            "pacSelector": "epac-dev",
+            "cloud": "AzureCloud",
+            "tenantId": "...",
+            "deploymentRootScope": "/providers/Microsoft.Management/managementGroups/mg-name"
+        }
+    ]
+}
+```
+
+Extract:
+- **pacSelector values**: The names of all pac selectors (e.g. `"epac-dev"`, `"tenant"`, `"prod"`).
+- **deploymentRootScope values**: The root management group or subscription scope for each pac selector.
+
+### Pac selector selection logic
+
+- If there is **exactly one** `pacEnvironment` entry, use that pac selector automatically for all scope references — do NOT prompt the user.
+- If there are **multiple** `pacEnvironment` entries, ask the user which pac selector to use for this operation.
+- Use the `deploymentRootScope` from the selected pac selector as the default scope when generating assignment files.
 
 ---
 
@@ -385,20 +422,25 @@ Create files under `Definitions/policyAssignments/`. Assignments use a recursive
 
 When the user asks to create EPAC policy objects, follow this process:
 
-1. **Clarify the request**: Determine which object type(s) are needed (definition, set, assignment).
-2. **Identify the target Definitions folder**: Ask the user which `Definitions/` directory to write files to.
+1. **Detect EPAC repo context (Step 0)**: Auto-detect the `Definitions/` folder and read `global-settings.jsonc` to extract pac selectors and root scopes. If only one pac selector exists, use it automatically.
+2. **Clarify the request**: Determine which object type(s) are needed (definition, set, assignment).
 3. **Gather inputs**:
    - For **definitions**: What should the policy enforce? Which resource type and properties? What effect?
-   - For **sets**: Which policies to include? Built-in (provide IDs from the azure-policy-audit skill) or custom?
-   - For **assignments**: Which policy/set to assign? What scope (management group, subscription)? What `pacSelector` from their global settings?
+   - For **sets**: Which policies to include? Built-in (provide IDs from the azure-policy-audit or azure-policy-research skills) or custom?
+   - For **assignments**: Which policy/set to assign? Use the auto-detected pac selector and `deploymentRootScope` from global settings as the default scope. Only ask for scope if the user wants something different.
 4. **Generate the JSON file(s)**: Use the templates and rules above. Validate naming conventions and required fields.
-5. **Write to disk**: Save files to the correct subfolder under the user's `Definitions/` directory.
+5. **Write to disk**: Save files to the correct subfolder under the auto-detected `Definitions/` directory.
 6. **Remind the user**: After creating files, remind them to run `Build-DeploymentPlans` to validate before deploying.
 
-### Integration with azure-policy-audit Skill
+### Integration with azure-policy-audit and azure-policy-research Skills
 
 When building a policy set from unassigned built-in policies discovered by the `azure-policy-audit` skill:
 1. Take the list of `policyDefinitionId` values from the audit results.
 2. Generate a policy set definition with each policy as a member.
 3. Create a corresponding assignment file.
 4. Use individual effect parameters (one per member policy) for granular control.
+
+When building policy objects from the `azure-policy-research` skill:
+1. The user may have browsed available policies for a service category.
+2. Take the selected `policyDefinitionId` values from the research results.
+3. Follow the same process as above to generate set definitions and assignments.
