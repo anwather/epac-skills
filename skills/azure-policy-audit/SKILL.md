@@ -1,6 +1,6 @@
 ---
 name: azure-policy-audit
-description: Audit Azure Policy definitions for a specific service (e.g. Storage, Compute, KeyVault). Finds built-in policy definitions related to the service, checks which are currently assigned in the subscription, and returns the unassigned policies with their names and IDs. Use this skill when asked about Azure policy coverage, missing policies, unassigned policies, or policy gaps for an Azure service.
+description: Audit Azure Policy definitions for a specific service (e.g. Storage, Compute, KeyVault). Finds built-in policy definitions related to the service, checks which are currently assigned in the subscription, and returns the unassigned policies with their names and IDs. Use this skill when asked about Azure policy coverage, missing policies, unassigned policies, or policy gaps for an Azure service. Also use this skill when asked to check if specific policies are assigned, verify policy deployment status, confirm whether policies are deployed in Azure, or look up assignment status for specific policy names or IDs.
 ---
 
 # Azure Policy Audit Skill
@@ -31,7 +31,27 @@ If found, read and parse `global-settings.jsonc` to extract `pacEnvironments`:
 
 If no `global-settings.jsonc` is found, fall back to the tenant root management group approach in Step 3.
 
-## Step 1 — Identify the target service
+## Step 1 — Determine audit mode
+
+The skill supports two modes:
+
+### Mode A — Specific policy check
+If the user provides **specific policy definition IDs, names, or display names** to check (e.g. "check if these two policies are assigned"), skip Step 3 entirely. Use the provided policy identifiers directly and proceed to Step 4 to check their assignment status.
+
+If policy definition IDs were provided, use them directly. If only display names or short names were provided, resolve them first:
+
+```powershell
+# Resolve by display name
+Get-AzPolicyDefinition | Where-Object { $_.DisplayName -eq '<DisplayName>' } | Select-Object -Property DisplayName, Name, @{N='PolicyDefinitionId';E={$_.Id}}
+```
+
+### Mode B — Full service audit (default)
+If the user asks about a service category broadly (e.g. "audit Storage policies"), continue to Step 2 to retrieve all built-in policies for that service.
+
+### Sub-topic filtering
+If the user specifies a sub-topic within a service (e.g. "HTTPS policies for Storage", "encryption policies for SQL"), note the keyword filter and apply it in Step 3 after retrieving policies by category — filter results where `DisplayName` or `Description` matches the sub-topic keyword.
+
+## Step 2 — Identify the target service
 
 Ask the user which Azure service to audit if not already specified. Common service keywords include:
 - **Storage** → `Microsoft.Storage`
@@ -45,7 +65,9 @@ Ask the user which Azure service to audit if not already specified. Common servi
 
 Use the resource provider namespace to match policy definitions accurately.
 
-## Step 2 — Retrieve built-in policy definitions for the service
+## Step 3 — Retrieve built-in policy definitions for the service
+
+> **Skip this step if using Mode A (specific policy check) from Step 1.**
 
 Use Az PowerShell to list built-in policy definitions related to the target service. Replace `<ServiceKeyword>` with the service name the user specified (e.g. "Storage", "Key Vault").
 
@@ -63,7 +85,13 @@ Get-AzPolicyDefinition | Where-Object { $_.PolicyType -eq 'BuiltIn' -and ($_.Dis
 
 Store the resulting list of policy definition IDs and display names.
 
-## Step 3 — Retrieve current policy assignments
+If a **sub-topic keyword** was identified in Step 1 (e.g. "HTTPS", "encryption", "TLS"), further filter the results:
+
+```powershell
+$policies = $policies | Where-Object { $_.DisplayName -match '<SubTopicKeyword>' -or $_.Description -match '<SubTopicKeyword>' }
+```
+
+## Step 4 — Retrieve current policy assignments
 
 Use Az PowerShell to retrieve all policy assignments at the target scope. The scope depends on whether EPAC context was detected in Step 0.
 
@@ -126,13 +154,13 @@ $assignedPolicyDefIds = $assignedPolicyDefIds | Sort-Object -Unique
 - It is directly assigned as a standalone policy assignment, OR
 - It is included within an assigned initiative (policy set definition)
 
-## Step 4 — Compare and identify unassigned policies
+## Step 5 — Compare and identify unassigned policies
 
-Compare the list of built-in policy definitions from Step 2 against the assigned policy definition IDs from Step 3.
+Compare the list of built-in policy definitions from Step 3 (or the specific policies from Step 1 Mode A) against the assigned policy definition IDs from Step 4.
 
 A policy is **unassigned** if its definition ID does not appear in any current assignment, either directly or within an initiative.
 
-## Step 5 — Return the results
+## Step 6 — Return the results
 
 Present the results in a clear, structured format. Always include two sections:
 
