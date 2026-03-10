@@ -1,6 +1,6 @@
-# EPAC Skills for GitHub Copilot CLI
+# EPAC Skills — Copilot CLI Plugin
 
-This folder contains custom [agent skills](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/create-skills) for GitHub Copilot CLI that help manage Azure Policy using the [Enterprise Policy as Code (EPAC)](https://aka.ms/epac) framework.
+A [GitHub Copilot CLI plugin](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-creating) that helps manage Azure Policy using the [Enterprise Policy as Code (EPAC)](https://aka.ms/epac) framework.
 
 ## Available Skills
 
@@ -34,41 +34,48 @@ Creates Azure Policy objects in EPAC format — policy definitions, policy set d
 
 ## Installation
 
-Copy the skill folders to one of the supported skill locations:
+Install as a Copilot CLI plugin:
 
-### Personal skills (all projects)
+### From a local clone
 
-```powershell
-Copy-Item -Recurse .\azure-policy-audit "$HOME\.copilot\skills\azure-policy-audit"
-Copy-Item -Recurse .\epac-policy-objects "$HOME\.copilot\skills\epac-policy-objects"
+```shell
+git clone https://github.com/<owner>/epac-skills.git
+copilot plugin install ./epac-skills
 ```
 
-### Repository skills (single project)
+### From GitHub (once published)
 
-```powershell
-Copy-Item -Recurse .\azure-policy-audit ".\.github\skills\azure-policy-audit"
-Copy-Item -Recurse .\epac-policy-objects ".\.github\skills\epac-policy-objects"
+```shell
+copilot plugin install <owner>/epac-skills
 ```
 
-### Organisation skills (all repos in org)
+### Verifying installation
 
-Copy the skill folders to the `/skills` directory in your organisation's `.github-private` repository.
+After installing, launch or restart GitHub Copilot CLI and run:
 
-## Verifying Installation
+```
+/plugin list
+```
 
-After copying, launch or restart GitHub Copilot CLI and run:
+You should see `epac-skills` in the list. You can also verify the skills loaded:
 
 ```
 /skills list
 ```
 
-If you've added skills during an active session, reload without restarting:
-
-```
-/skills reload
-```
-
 You should see `azure-policy-audit` and `epac-policy-objects` in the list.
+
+### Updating
+
+```shell
+copilot plugin update epac-skills
+```
+
+### Uninstalling
+
+```shell
+copilot plugin uninstall epac-skills
+```
 
 ## Prerequisites
 
