@@ -51,6 +51,20 @@ Creates Azure Policy objects in EPAC format — policy definitions, policy set d
 
 **Works with:** The `azure-policy-audit` and `azure-policy-research` skills — research or audit first to find policies, then use this skill to generate the EPAC files to deploy them.
 
+### epac-build-deployment-plan
+
+Builds and validates EPAC deployment plans using `Build-DeploymentPlans`. It captures command output and summarizes what policy definitions, initiatives, assignments, exemptions, and related role changes will be created, updated, replaced, deleted, or unchanged.
+
+**Use when:** You want to preview and validate EPAC deployment impact before running deploy commands.
+
+**Example prompts:**
+
+- `Build an EPAC deployment plan for my repo`
+- `Preview what policy changes will be deployed for prod`
+- `Validate my EPAC definitions and summarize changes`
+
+**Requirements:** `EnterprisePolicyAsCode` PowerShell module installed and imported, authenticated Azure session, and an EPAC repo with a valid `Definitions/global-settings.jsonc`.
+
 ## Installation
 
 Install as a Copilot CLI plugin:
@@ -82,7 +96,12 @@ You should see `epac-skills` in the list. You can also verify the skills loaded:
 /skills list
 ```
 
-You should see `azure-policy-audit` and `epac-policy-objects` in the list.
+You should see:
+
+- `azure-policy-audit`
+- `azure-policy-research`
+- `epac-policy-objects`
+- `epac-build-deployment-plan`
 
 ### Updating
 
