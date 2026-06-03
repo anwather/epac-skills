@@ -65,6 +65,20 @@ Builds and validates EPAC deployment plans using `Build-DeploymentPlans`. It cap
 
 **Requirements:** `EnterprisePolicyAsCode` PowerShell module installed and imported, authenticated Azure session, and an EPAC repo with a valid `Definitions/global-settings.jsonc`.
 
+### epac-test-fixtures
+
+Scaffolds a ready-to-deploy set of EPAC artifacts — one custom Storage initiative, four built-in policy assignments (NSG-on-subnet, Key Vault soft-delete, Key Vault purge protection, and the custom initiative), and five exemptions deliberately varied across every optional field (`expiresOn`, `description`, `policyDefinitionReferenceIds`, `resourceSelectors`, `assignmentScopeValidation`, `scope` vs `scopes`, minimal vs rich metadata). All policies are Audit-only and have no Log Analytics / Guest Configuration / extension dependencies, so they deploy cleanly against any management group. Then runs `Build-DeploymentPlans` to confirm the fixtures are valid.
+
+**Use when:** You want to populate an otherwise-empty EPAC repo so you can deploy real artifacts to reproduce, exercise, or smoke-test EPAC behavior (e.g. validating a new EPAC flag, walking through an end-to-end deploy/export round-trip, or reproducing an issue).
+
+**Example prompts:**
+
+- `Populate this empty EPAC repo with some test fixtures`
+- `Create a few assignments and varied exemptions I can deploy`
+- `Scaffold smoke-test content for the EPAC change I'm working on`
+
+**Works with:** The `epac-build-deployment-plan` skill — runs it automatically once the fixtures are written so you immediately see the build summary.
+
 ## Installation
 
 Install as a Copilot CLI plugin:
@@ -102,6 +116,7 @@ You should see:
 - `azure-policy-research`
 - `epac-policy-objects`
 - `epac-build-deployment-plan`
+- `epac-test-fixtures`
 
 ### Updating
 

@@ -1,7 +1,7 @@
 {
   "name": "epac-skills",
-  "description": "Azure Policy skills for the Enterprise Policy as Code (EPAC) framework. Audit policy coverage gaps, research available built-in policies, generate EPAC-compatible policy definitions, initiatives, and assignments, and build deployment plans to validate changes before deploying.",
-  "version": "1.2.1",
+  "description": "Azure Policy skills for the Enterprise Policy as Code (EPAC) framework. Audit policy coverage gaps, research available built-in policies, generate EPAC-compatible policy definitions, initiatives, and assignments, scaffold ready-to-deploy test fixtures, and build deployment plans to validate changes before deploying.",
+  "version": "1.3.0",
   "license": "MIT",
   "keywords": [
     "azure",
