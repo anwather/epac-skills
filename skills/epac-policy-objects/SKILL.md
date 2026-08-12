@@ -1,6 +1,6 @@
 ---
 name: epac-policy-objects
-description: Create Azure Policy objects in EPAC (Enterprise Policy as Code) format. Generates policy definitions, policy set definitions (initiatives), and policy assignments as JSON/JSONC files following EPAC conventions. Use this skill when asked to create, generate, or scaffold EPAC policy files, policy sets, assignments, or any Azure Policy as Code object.
+description: Create Azure Policy objects in EPAC (Enterprise Policy as Code) format. Generates policy definitions, policy set definitions (initiatives), policy assignments, and policy enrollments as JSON/JSONC files following EPAC conventions. Use this skill when asked to create, generate, scaffold, enroll, or update EPAC policy files, policy sets, assignments, policy enrollments, or any Azure Policy as Code object.
 ---
 
 # EPAC Policy Object Creation Skill
@@ -14,6 +14,7 @@ Definitions/
 ├── policySetDefinitions/{Category}/
 ├── policyAssignments/
 ├── policyExemptions/
+├── policyEnrollments/{pacSelector}/
 └── policyDocumentations/
 ```
 
@@ -57,6 +58,7 @@ Extract:
 - If there is **exactly one** `pacEnvironment` entry, use that pac selector automatically for all scope references — do NOT prompt the user.
 - If there are **multiple** `pacEnvironment` entries, ask the user which pac selector to use for this operation.
 - Use the `deploymentRootScope` from the selected pac selector as the default scope when generating assignment files.
+- For Policy Enrollments, write only to `Definitions/policyEnrollments/<selected-pacSelector>/`. A missing selector subfolder means that environment does not manage enrollments; an empty selector subfolder represents an empty desired state and may cause deletions according to `desiredState.strategy`.
 
 ---
 
@@ -94,7 +96,7 @@ Create files under `Definitions/policyDefinitions/{Category}/` where `{Category}
         },
         "policyRule": {
             "if": {
-                "<condition>"
+                "<field-or-operator>": "<condition>"
             },
             "then": {
                 "effect": "[parameters('effect')]"
@@ -375,7 +377,7 @@ Create files under `Definitions/policyAssignments/`. Assignments use a recursive
   - `policySetName` — name of a custom EPAC policy set definition
   - `policyName` — name of a custom EPAC policy definition
 - **scope**: Object keyed by `pacSelector` values from `global-settings.jsonc`. Each value is an array of management group, subscription, or resource group scopes.
-- **enforcementMode**: `"Default"` (enforce) or `"DoNotEnforce"` (audit only).
+- **enforcementMode**: `"Default"` (enforce), `"DoNotEnforce"` (do not enforce), or `"Enroll"` (make the assignment available to Policy Enrollments). `Enroll` and its related assignment API are preview features.
 - **parameters**: Flat object of parameter name/value pairs. Parameters set at parent nodes are inherited by all `children`.
 - **notScopes**: Object keyed by `pacSelector`. Each value is an array of scopes to exclude.
 - **children[]**: Array of child nodes. Each child inherits `scope`, `notScopes`, and `parameters` from the parent and can override or extend them.
@@ -418,19 +420,98 @@ Create files under `Definitions/policyAssignments/`. Assignments use a recursive
 
 ---
 
+## Object Type 4 — Policy Enrollment (Preview)
+
+> [!WARNING]
+> Policy Enrollments are an Azure preview feature. The resource contract and behavior may change before general availability. EPAC uses API version `2026-01-01-preview` for Policy Enrollments and for Policy Assignments whose `enforcementMode` is `"Enroll"`.
+
+A Policy Enrollment enrolls one or more scopes in a Policy Assignment whose `enforcementMode` is `"Enroll"`. Create JSON or JSONC files under `Definitions/policyEnrollments/<pacSelector>/`, using the selected PAC environment's exact `pacSelector` as the subfolder name.
+
+### Template
+
+```json
+{
+    "$schema": "https://raw.githubusercontent.com/Azure/enterprise-azure-policy-as-code/main/Schemas/policy-enrollment-schema.json",
+    "name": "application-team-enrollment",
+    "scopes": [
+        "/subscriptions/<subscription-id>"
+    ],
+    "displayName": "<Human readable name>",
+    "description": "<Why these scopes are enrolled>",
+    "policyAssignmentId": "/providers/Microsoft.Management/managementGroups/<management-group>/providers/Microsoft.Authorization/policyAssignments/<assignment-name>",
+    "assignmentScopeValidation": "Default",
+    "policyDefinitionReferenceIds": [
+        "<initiative-member-reference-id>"
+    ],
+    "resourceSelectors": [
+        {
+            "name": "locations",
+            "selectors": [
+                {
+                    "kind": "resourceLocation",
+                    "in": [
+                        "eastus",
+                        "westus"
+                    ]
+                }
+            ]
+        }
+    ],
+    "metadata": {
+        "owner": "<team-name>"
+    }
+}
+```
+
+### Rules
+
+- **Required fields**: `name` and `policyAssignmentId`.
+- **name**: Must be non-empty, must not end with a space, and must not contain `<`, `>`, `%`, `&`, `:`, `\`, `?`, or `/`.
+- **scope/scopes**: Define exactly one of:
+  - `scope` — one non-empty scope string.
+  - `scopes` — a non-empty array of unique, non-empty scope strings.
+- **Expansion**: EPAC expands `scopes` into one Policy Enrollment per scope at `<scope>/providers/Microsoft.Authorization/policyEnrollments/<name>`.
+- **policyAssignmentId**: Use the full resource ID of a Policy Assignment whose `enforcementMode` is `"Enroll"`.
+- **assignmentScopeValidation**: Optional; use only `"Default"` or `"DoNotValidate"`. It defaults to `"Default"`.
+- **policyDefinitionReferenceIds**: Optional array of unique policy definition reference IDs.
+- **resourceSelectors**: Optional array. Every item must contain `name` and `selectors`. Every selector must:
+  - Set `kind` to one of `groupPrincipalId`, `policyDefinitionReferenceId`, `resourceLocation`, `resourceType`, `resourceWithoutLocation`, or `userPrincipalId`.
+  - Define exactly one of `in` or `notIn`, each as an array of strings.
+  - Contain no properties other than `kind`, `in`, and `notIn`.
+- **metadata.pacOwnerId**: Reserved for EPAC. Never define `pacOwnerId` in an enrollment file; EPAC adds it automatically.
+- **Optional fields**: `displayName`, `description`, `assignmentScopeValidation`, `policyDefinitionReferenceIds`, `resourceSelectors`, and `metadata`.
+- Do not add top-level properties not defined by `policy-enrollment-schema.json`.
+
+---
+
 ## Workflow Guidance
 
 When the user asks to create EPAC policy objects, follow this process:
 
 1. **Detect EPAC repo context (Step 0)**: Auto-detect the `Definitions/` folder and read `global-settings.jsonc` to extract pac selectors and root scopes. If only one pac selector exists, use it automatically.
-2. **Clarify the request**: Determine which object type(s) are needed (definition, set, assignment).
+2. **Clarify the request**: Determine which object type(s) are needed (definition, set, assignment, enrollment).
 3. **Gather inputs**:
    - For **definitions**: What should the policy enforce? Which resource type and properties? What effect?
    - For **sets**: Which policies to include? Built-in (provide IDs from the azure-policy-audit or azure-policy-research skills) or custom?
    - For **assignments**: Which policy/set to assign? Use the auto-detected pac selector and `deploymentRootScope` from global settings as the default scope. Only ask for scope if the user wants something different.
+   - For **enrollments**: Which selected PAC environment, enrollment scope or scopes, and Policy Assignment should be used? Determine whether the assignment already exists and whether it already uses `enforcementMode: "Enroll"`.
 4. **Generate the JSON file(s)**: Use the templates and rules above. Validate naming conventions and required fields.
 5. **Write to disk**: Save files to the correct subfolder under the auto-detected `Definitions/` directory.
 6. **Remind the user**: After creating files, remind them to run `Build-DeploymentPlans` to validate before deploying.
+
+### Combined Assignment And Enrollment Workflow
+
+When asked to create or update an enrollable assignment and its enrollment:
+
+1. Select the PAC environment and use its `deploymentRootScope` as the default assignment scope.
+2. Locate the requested assignment:
+   - If it does not exist, create it under `Definitions/policyAssignments/` with `enforcementMode: "Enroll"`.
+   - If it exists, explain every proposed assignment change and obtain confirmation before editing any field. Preserve its file structure and all unrelated content; change only what the enrollment requires. Include changing `enforcementMode` to `"Enroll"` when needed.
+   - If it already uses `"Enroll"` and needs no other changes, do not rewrite it.
+3. Construct the assignment's full Azure resource ID from the exact deployment scope and `assignment.name`, and use it as the enrollment's `policyAssignmentId`. If the assignment definition expands across multiple scopes, select the intended deployed assignment instance explicitly; do not assume one ID represents every expanded assignment.
+4. Create the enrollment under `Definitions/policyEnrollments/<selected-pacSelector>/`, defining exactly one of `scope` or `scopes`.
+5. Validate the enrollment against `policy-enrollment-schema.json`, including `assignmentScopeValidation`, `resourceSelectors`, unique reference IDs/scopes, and the reserved `metadata.pacOwnerId` rule.
+6. Run or recommend `Build-DeploymentPlans` and call out that both `"Enroll"` assignments and Policy Enrollments use preview APIs.
 
 ### Integration with azure-policy-audit and azure-policy-research Skills
 
