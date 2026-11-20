@@ -1,7 +1,7 @@
 {
   "name": "epac-skills",
   "description": "Azure Policy skills for the Enterprise Policy as Code (EPAC) framework. Scaffold EPAC projects, audit and research policies, generate policy objects including enrollments, build policy documentation, create test fixtures, and validate deployment plans.",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "license": "MIT",
   "keywords": [
     "azure",
