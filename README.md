@@ -10,7 +10,7 @@ When launched inside an EPAC repository, all skills automatically detect the `De
 
 ### epac-scaffold
 
-Creates a complete EPAC `Definitions/` structure and a safe starter `global-settings.jsonc`. It uses the active Az PowerShell context for the tenant ID when available, prompts for values that cannot be inferred, and preserves any existing files.
+Creates a complete EPAC `Definitions/` structure and a safe starter `global-settings.jsonc`. It automatically reuses a single discovered `Definitions` root, otherwise defaults to `Definitions/` under the current directory. For new settings it uses the active Az subscription scope when available, defaults the managed identity location to `australiaeast`, and preserves all existing files. It creates an empty troubleshooting scaffold by default; policy fixtures are opt-in.
 
 **Use when:** You want to initialize a new EPAC project before adding policy resources.
 
@@ -20,7 +20,7 @@ Creates a complete EPAC `Definitions/` structure and a safe starter `global-sett
 - `Create a new EPAC Definitions structure under ./policy`
 - `Initialize an EPAC test environment`
 
-**Requirements:** Az PowerShell is optional. If no authenticated context is available, the skill writes a clearly marked tenant ID placeholder.
+**Requirements:** Az PowerShell is optional. If no authenticated context is available, the skill writes clearly marked tenant and deployment-scope placeholders.
 
 ### azure-policy-audit
 
